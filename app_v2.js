@@ -293,9 +293,11 @@ function fitTo(mesh) {
 
 /* ══════════ ⑥ البحث (AnatomySearchScreen) ══════════ */
 function buildIndex() {
-  S.index = S.index || [];
+  S.index = [];
   for (const k in S.loaded) {
-    for (const m of S.loaded[k].meshes) {
+    const L = S.loaded[k];
+    if (!L || !L.meshes) continue;
+    for (const m of L.meshes) {
       S.index.push({ en: m.userData.en, ar: m.userData.ar, group: k, mesh: m });
     }
   }
@@ -590,7 +592,7 @@ async function loadOnDemand(gname) {
   if (S.loaded[gname]) {
     S.visible[gname] = !S.visible[gname];
     S.loaded[gname].root.visible = S.visible[gname];
-    if (S.visible[gname]) { S.index = null; buildIndex(); fit(); }
+    if (S.visible[gname]) { buildIndex(); fit(); }
     return S.visible[gname];
   }
   const g = S.groups.find(x => x.name === gname);
