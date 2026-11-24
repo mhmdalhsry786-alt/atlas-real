@@ -181,7 +181,8 @@ import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { DRACOLoader } from './vendor/DRACOLoader.js';
 
 /* ═══ الإعداد ═══ */
-const MANIFEST_URL = "manifest.json";   // قائمة المجموعات والأسماء
+const MANIFEST_URL = "manifest.json";
+const MODEL_BASE = "https://github.com/mhmdalhsry786-alt/atlas-real/releases/download/models-v1/";   // النماذج على GitHub Releases
 const S = {
   renderer:null, scene:null, camera:null,
   groups:[],        // [{file, count, ...}]
@@ -304,7 +305,8 @@ async function boot(){
     const label = `يُحمّل ${g.name || g.file}…`;
     txt.textContent = label; badge.classList.add("show"); $("#badgeTxt").textContent = label;
     try{
-      const gltf = await loader.loadAsync(g.file, ev=>{
+      const url = MODEL_BASE + g.file.split("/").pop();
+      const gltf = await loader.loadAsync(url, ev=>{
         if(ev.lengthComputable)
           bar.style.width = (((done + ev.loaded/ev.total)/N)*100).toFixed(1)+"%";
       });
