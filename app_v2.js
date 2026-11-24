@@ -10,6 +10,21 @@ import { GLTFLoader } from "./vendor/GLTFLoader.js";
 import { DRACOLoader } from "./vendor/DRACOLoader.js";
 
 const MODEL_BASE = "./models/";
+const TEX_BASE = "./tex/";
+const texLoader = new THREE.TextureLoader();
+texLoader.crossOrigin = "anonymous";
+const texCache = new Map();
+let TEX_BIND = null;   // اسم الجزء → {d:diffuse, n:normal}
+
+function getTex(path) {
+  if (!path) return null;
+  if (texCache.has(path)) return texCache.get(path);
+  const t = texLoader.load(TEX_BASE + path.replace(/^tex\//, ""));
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  texCache.set(path, t);
+  return t;
+}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
@@ -122,13 +137,25 @@ async function loadGroup(loader, g) {
     if (!o.isMesh) return;
     o.userData.group = g.name;
     o.userData.idx = i;
-    let raw = (names[i] || o.name || "").replace(/__\d+$/, "").replace(/_/g, " ").trim();
+    const raw0 = names[i] || o.name || "";
+    o.userData.origName = raw0;
+    let raw = raw0.replace(/__\d+$/, "").replace(/_/g, " ").trim();
     raw = raw.replace(/\s+\d{3,}$/, "").replace(/\s{2,}/g, " ").trim();
     o.userData.en = raw || `جزء ${i + 1}`;
     o.userData.ar = translateAr(o.userData.en);
     i++;
+    const b = TEX_BIND && (TEX_BIND[o.userData.origName] || TEX_BIND[raw0] || TEX_BIND[o.userData.en]);
     if (o.material) {
       o.material = o.material.clone();
+      if (b && b.d) {
+        const tx = getTex(b.d);
+        if (tx) {
+          o.material.map = tx;
+          o.material.color.set(0xffffff);
+          o.material.needsUpdate = true;
+        }
+        if (b.n) { o.material.normalMap = getTex(b.n); o.material.normalScale = new THREE.Vector2(0.7, 0.7); }
+      }
       o.material.side = THREE.DoubleSide;
       o.material.roughness = 0.6; o.material.metalness = 0.05;
       o.material.transparent = true; o.material.opacity = 1;
@@ -604,6 +631,7 @@ async function boot() {
   const loader = initScene();
   wireUI();
   try {
+    try { TEX_BIND = await (await fetch("tex/bind.json")).json(); } catch (e) { TEX_BIND = null; }
     const man = await (await fetch("manifest.json")).json();
     S.groups = man.groups; S.names = man.names || {};
     $("#sG").textContent = S.groups.length;
