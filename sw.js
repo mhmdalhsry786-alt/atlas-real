@@ -57,15 +57,26 @@ self.addEventListener('message', e => {
   const urls = e.data.urls || [];
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
-    let done = 0;
+    let done = 0, failed = 0, bytes = 0;
     for (const u of urls) {
       try {
         const hit = await c.match(u);
-        if (!hit) { const r = await fetch(u); if (r.ok) await c.put(u, r.clone()); }
-        done++;
-        if (e.source) e.source.postMessage({type:'CACHE_PROGRESS', done, total: urls.length});
-      } catch (_) {}
+        if (hit) { done++; }
+        else {
+          const r = await fetch(u);
+          if (r.ok) {
+            const blob = await r.clone().blob();
+            bytes += blob.size;
+            await c.put(u, new Response(blob, {headers: r.headers}));
+            done++;
+          } else { failed++; }
+        }
+      } catch (err) {
+        failed++;
+        if (e.source) e.source.postMessage({type:'CACHE_FAIL', url:u, reason:String(err).slice(0,80)});
+      }
+      if (e.source) e.source.postMessage({type:'CACHE_PROGRESS', done, failed, bytes, total: urls.length});
     }
-    if (e.source) e.source.postMessage({type:'CACHE_DONE', done, total: urls.length});
+    if (e.source) e.source.postMessage({type:'CACHE_DONE', done, failed, bytes, total: urls.length});
   })());
 });

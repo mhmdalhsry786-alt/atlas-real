@@ -322,6 +322,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
   const txt = document.getElementById('dlTxt');
   if (!btn) return;
 
+  async function ensurePersistent() {
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        const already = await navigator.storage.persisted();
+        if (!already) return await navigator.storage.persist();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   async function downloadAll() {
     if (!navigator.serviceWorker.controller && swReg) {
       await navigator.serviceWorker.ready;
@@ -329,6 +340,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
     }
     btn.disabled = true;
     btn.textContent = '⏳ يُخزّن…';
+    const persisted = await ensurePersistent();
+    let quota = '';
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        quota = `${Math.round((est.quota||0)/1048576)}MB متاح`;
+      }
+    } catch (_) {}
+    txt.textContent = (persisted ? '✅ تخزين دائم مفعّل · ' : '⚠️ تخزين مؤقت · ') + quota;
     try {
       const man = await (await fetch('manifest.json')).json();
       const urls = man.groups.map(g => './models/' + g.file.split('/').pop());
@@ -342,22 +362,28 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
       const sw = navigator.serviceWorker.controller || (swReg && swReg.active);
       if (!sw) { txt.textContent = 'أعد تحميل الصفحة ثم جرّب'; btn.disabled=false; return; }
       sw.postMessage({ type: 'CACHE_MODELS', urls: all });
-      let done = 0, total = all.length;
+      let done = 0, failed = 0, bytes = 0, total = all.length;
       navigator.serviceWorker.addEventListener('message', ev => {
         const d = ev.data || {};
         if (d.type === 'CACHE_PROGRESS') {
-          done = d.done; total = d.total;
+          done = d.done; failed = d.failed || 0; bytes = d.bytes || 0; total = d.total;
           btn.textContent = `⏳ ${Math.round(done/total*100)}%`;
-          txt.textContent = `${done} / ${total}`;
+          txt.textContent = `${done}/${total} · ${Math.round(bytes/1048576)}MB` + (failed ? ` · ${failed} فشل` : '');
+        }
+        if (d.type === 'CACHE_FAIL') {
+          console.warn('cache fail', d.url, d.reason);
         }
         if (d.type === 'CACHE_DONE') {
-          btn.textContent = '✅ محفوظ على الهاتف';
-          btn.style.background = 'rgba(56,211,159,.15)';
-          btn.style.borderColor = '#38d39f';
-          btn.style.color = '#38d39f';
+          const okAll = d.failed === 0;
+          btn.textContent = okAll ? '✅ محفوظ على الهاتف' : `⚠️ ${d.done}/${d.total} محفوظ`;
+          btn.style.background = okAll ? 'rgba(56,211,159,.15)' : 'rgba(255,159,67,.15)';
+          btn.style.borderColor = okAll ? '#38d39f' : '#ff9f43';
+          btn.style.color = okAll ? '#38d39f' : '#ff9f43';
           btn.disabled = false;
-          txt.textContent = 'افتح التطبيق بلا إنترنت الآن';
-          localStorage.setItem('offlineReady', '1');
+          txt.textContent = okAll
+            ? `اكتمل ${Math.round((d.bytes||0)/1048576)}MB — يعمل بلا إنترنت`
+            : `${d.done} نجح · ${d.failed} فشل (ذاكرة المتصفح ممتلئة)`;
+          if (okAll) localStorage.setItem('offlineReady', '1');
         }
       });
     } catch (e) {
