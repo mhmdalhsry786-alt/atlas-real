@@ -130,6 +130,12 @@ function render() {
 async function loadGroup(loader, g) {
   const url = MODEL_BASE + g.file.split("/").pop();
   const gltf = await loader.loadAsync(url);
+  // Unity: كل bundle بإحداثياته الخاصة — طبّع الموضع حول مركزه
+  const bb = new THREE.Box3().setFromObject(gltf.scene);
+  if (!bb.isEmpty()) {
+    const cc = bb.getCenter(new THREE.Vector3());
+    gltf.scene.position.sub(cc);
+  }
   const meshes = [];
   const names = S.names[g.name] || [];
   let i = 0;
