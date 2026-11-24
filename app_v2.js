@@ -172,8 +172,9 @@ async function loadGroup(loader, g) {
   S.scene.add(gltf.scene);
   S.loaded[g.name] = { root: gltf.scene, meshes };
   const isFirst = Object.keys(S.loaded).length === 1;
-  S.visible[g.name] = isFirst;          // ابدأ بمجموعة واحدة كاملة
+  S.visible[g.name] = isFirst;
   gltf.scene.visible = isFirst;
+  if (isFirst) S.current = g.name;      // المجموعة المعروضة
   return meshes.length;
 }
 
@@ -260,6 +261,9 @@ function fit() {
   const box = new THREE.Box3();
   for (const k in S.loaded)
     if (S.visible[k]) S.loaded[k].meshes.forEach(m => { if (m.visible) box.expandByObject(m); });
+  // إن لم يظهر شيء، استخدم المجموعة الحالية
+  if (box.isEmpty() && S.current && S.loaded[S.current])
+    S.loaded[S.current].meshes.forEach(m => box.expandByObject(m));
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3());
   const sz = box.getSize(new THREE.Vector3());
@@ -571,8 +575,8 @@ function renderSysList() {
   const rows = S.groups.map(g => {
     const on = S.loaded[g.name] && S.visible[g.name];
     const n = S.loaded[g.name] ? S.loaded[g.name].meshes.length : (g.count || 0);
-    return `<label class="sysrow">
-       <input type="checkbox" ${on ? "checked" : ""} data-g="${g.name}">
+    return `<label class="sysrow" data-g="${g.name}">
+       <input type="checkbox" ${on ? "checked" : ""} data-g="${g.name}" readonly>
        <span class="sys-name">${g.name.replace("sharedassets", "مجموعة ")}</span>
        <span class="sys-n">${(+n).toLocaleString("en-US")}</span>
      </label>`;
@@ -585,6 +589,29 @@ function renderSysList() {
       for (const m of S.loaded[g].meshes) m.visible = inp.checked;
     };
   });
+}
+
+/* ══════════ ⑩أ عرض مجموعة واحدة ══════════ */
+async function showOnly(gname) {
+  if (!S.loaded[gname]) {
+    const g = S.groups.find(x => x.name === gname);
+    if (!g || !S.loader) return;
+    badge("يُحمّل…");
+    try { await loadGroup(S.loader, g); } catch (e) { badge("تعذّر"); return; }
+    badge("");
+  }
+  for (const k in S.loaded) {
+    const on = (k === gname);
+    S.visible[k] = on;
+    S.loaded[k].root.visible = on;
+  }
+  S.current = gname;
+  S.index = null;
+  buildIndex();
+  fit();
+  const t = $("#title");
+  if (t) t.textContent = gname.replace("sharedassets", "مجموعة ");
+  renderSysList();
 }
 
 /* ══════════ ⑩ب تحميل مجموعة عند الطلب ══════════ */
