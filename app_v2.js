@@ -255,6 +255,18 @@ function fit() {
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3());
   const sz = box.getSize(new THREE.Vector3());
+  // Unity Y-up لكن النموذج قد يكون مُستلقيًا على Z — اجعله واقفًا
+  if (sz.z > sz.y * 1.6) {
+    for (const k in S.loaded) {
+      if (!S.loaded[k].__rot) {
+        S.loaded[k].root.rotation.x = -Math.PI / 2;
+        S.loaded[k].__rot = true;
+      }
+    }
+    box.makeEmpty();
+    for (const k in S.loaded)
+      if (S.visible[k]) S.loaded[k].meshes.forEach(m => { if (m.visible) box.expandByObject(m); });
+  }
   const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
   S.target.copy(c);
   S.sph.r = maxDim * 1.3;
