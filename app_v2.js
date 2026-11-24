@@ -88,7 +88,7 @@ function addControls() {
 
   function apply() {
     sph.ph = Math.max(0.05, Math.min(Math.PI - 0.05, sph.ph));
-    sph.r = Math.max(20, Math.min(2000, sph.r));
+    sph.r = Math.max(0.001, Math.min(2000000, sph.r));
     S.camera.position.set(
       t.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th),
       t.y + sph.r * Math.cos(sph.ph),
