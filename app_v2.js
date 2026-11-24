@@ -293,7 +293,7 @@ function fitTo(mesh) {
 
 /* ══════════ ⑥ البحث (AnatomySearchScreen) ══════════ */
 function buildIndex() {
-  S.index = [];
+  S.index = S.index || [];
   for (const k in S.loaded) {
     for (const m of S.loaded[k].meshes) {
       S.index.push({ en: m.userData.en, ar: m.userData.ar, group: k, mesh: m });
@@ -566,15 +566,16 @@ function toggleXray() {
 function toggleSystems() { show("#sysSheet"); }
 
 function renderSysList() {
-  const groups = {};
-  for (const k in S.loaded) groups[k] = S.loaded[k].meshes.length;
-  $("#sysList").innerHTML = Object.keys(groups)
-    .sort((a, b) => groups[b] - groups[a])
-    .map(k => `<label class="sysrow">
-       <input type="checkbox" ${S.visible[k] ? "checked" : ""} data-g="${k}">
-       <span class="sys-name">${k.replace("sharedassets", "مجموعة ")}</span>
-       <span class="sys-n">${groups[k].toLocaleString("en-US")}</span>
-     </label>`).join("");
+  const rows = S.groups.map(g => {
+    const on = S.loaded[g.name] && S.visible[g.name];
+    const n = S.loaded[g.name] ? S.loaded[g.name].meshes.length : (g.count || 0);
+    return `<label class="sysrow">
+       <input type="checkbox" ${on ? "checked" : ""} data-g="${g.name}">
+       <span class="sys-name">${g.name.replace("sharedassets", "مجموعة ")}</span>
+       <span class="sys-n">${(+n).toLocaleString("en-US")}</span>
+     </label>`;
+  }).sort((a, b) => 0);
+  $("#sysList").innerHTML = rows.join("");
   $("#sysList").querySelectorAll("input").forEach(inp => {
     inp.onchange = () => {
       const g = inp.dataset.g;
@@ -582,6 +583,35 @@ function renderSysList() {
       for (const m of S.loaded[g].meshes) m.visible = inp.checked;
     };
   });
+}
+
+/* ══════════ ⑩ب تحميل مجموعة عند الطلب ══════════ */
+async function loadOnDemand(gname) {
+  if (S.loaded[gname]) {
+    S.visible[gname] = !S.visible[gname];
+    S.loaded[gname].root.visible = S.visible[gname];
+    if (S.visible[gname]) { S.index = null; buildIndex(); fit(); }
+    return S.visible[gname];
+  }
+  const g = S.groups.find(x => x.name === gname);
+  if (!g || !S.loader) return false;
+  badge(`يُحمّل ${gname}…`);
+  try {
+    await loadGroup(S.loader, g);
+    S.visible[gname] = true;
+    S.loaded[gname].root.visible = true;
+    buildIndex(); fit(); renderSysList();
+    badge("");
+    return true;
+  } catch (e) { badge("تعذّر التحميل"); return false; }
+}
+
+function badge(t) {
+  const b = $("#badge");
+  if (!b) return;
+  if (!t) { b.classList.remove("show"); return; }
+  $("#badgeTxt").textContent = t;
+  b.classList.add("show");
 }
 
 /* ══════════ ⑪ الشرائح والواجهة ══════════ */
@@ -654,6 +684,7 @@ function search2(q) {
 /* ══════════ ⑫ البدء ══════════ */
 async function boot() {
   const loader = initScene();
+  S.loader = loader;
   wireUI();
   try {
     try { TEX_BIND = await (await fetch("tex/bind.json")).json(); } catch (e) { TEX_BIND = null; }
@@ -668,10 +699,13 @@ async function boot() {
   const queue = [...S.groups].sort((a, b) => (b.count || 0) - (a.count || 0));
   let done = 0, total = 0;
   const CONC = 3;   // ثلاث مجموعات متوازية = أسرع 3×
+  let loadedCount = 0;
+  const EAGER_MAX = 3;
   async function worker() {
-    while (queue.length) {
+    while (queue.length && loadedCount < EAGER_MAX) {
       const g = queue.shift();
-      if (!g) break;
+      if (!g || loadedCount >= EAGER_MAX) break;
+      loadedCount++;
       try {
         const n = await loadGroup(loader, g);
         if (n) { total += n; done++; }
@@ -684,7 +718,9 @@ async function boot() {
       } catch (e) { console.warn("group fail", g.name, e); }
     }
   }
-  await Promise.all(Array.from({length: CONC}, worker));
+  // حمّل أول 3 مجموعات فقط — الباقي عند الطلب من قائمة المجموعات
+  const eager = Math.min(3, queue.length);
+  await Promise.all(Array.from({length: Math.min(CONC, eager)}, worker));
   buildIndex();
   renderSysList();
   $("#progTxt").textContent = `اكتمل — ${total.toLocaleString("en-US")} جزء`;
