@@ -5,566 +5,312 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="أتلس">
-<meta name="theme-color" content="#080b10">
-<title>أتلس — تشريح جسم الإنسان</title>
+<meta name="theme-color" content="#0a0e14">
+<title>أطلس التشريح — 3D</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
-  :root{
-    --bg:#080b10; --panel:#111722; --panel2:#18202d; --line:#243040;
-    --txt:#eff3f9; --dim:#8492a6; --acc:#39d29b; --acc2:#4f9fff;
-    --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,"SF Arabic","Segoe UI",system-ui,sans-serif;
-    -webkit-user-select:none;user-select:none;overscroll-behavior:none;}
-  canvas{display:block;touch-action:none;}
-  #view{position:fixed;inset:0;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0e14; --panel:#131a24; --panel2:#1b2532; --line:#243040;
+  --txt:#e8eef6; --dim:#8b9bb0; --acc:#ff9f43; --acc2:#4aa8ff; --ok:#38d39f; --bad:#ff5c6c;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Arabic","Segoe UI",Tahoma,sans-serif;
+  -webkit-user-select:none;user-select:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
-  #top{position:fixed;top:0;left:0;right:0;z-index:20;
-    padding:calc(var(--sat) + 8px) 12px 8px;display:flex;align-items:center;gap:8px;
-    background:linear-gradient(180deg,rgba(8,11,16,.95),rgba(8,11,16,0));}
-  #brand{font-size:16px;font-weight:800;flex:1;}
-  #brand span{color:var(--acc);}
-  #brand small{display:block;font-size:10px;font-weight:400;color:var(--dim);}
-  #hud{font-size:9.5px;color:#4a5768;direction:ltr;text-align:left;line-height:1.4;}
-  .ib{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
-    background:rgba(17,23,34,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    color:var(--txt);display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;}
-  .ib.on{background:var(--acc);color:#03130c;border-color:var(--acc);}
-  .ib:active{transform:scale(.93);}
+/* ── بوابة البدء ── */
+#gate{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,#0a0e14,#111c2a 60%,#0a0e14);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;text-align:center}
+#gate .logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--acc),#ff6b35);
+  display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 12px 40px rgba(255,159,67,.3)}
+#gate h1{font-size:25px;font-weight:800;letter-spacing:-.5px}
+#gate .sub{font-size:13px;color:var(--dim);line-height:1.7}
+#progBar{height:5px;background:var(--line);border-radius:3px;width:230px;overflow:hidden}
+#progBar{position:relative}
+#progBar::after{content:"";position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+#progTxt{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+#go{padding:15px 44px;border:none;border-radius:15px;background:linear-gradient(135deg,var(--acc),#ff6b35);
+  color:#101418;font-size:16.5px;font-weight:800;font-family:inherit;opacity:1;transition:.2s}
+#go:disabled{opacity:.3}
+.stats{display:flex;gap:24px;font-size:11.5px;color:var(--dim)}
+.stats b{display:block;font-size:19px;color:var(--txt);font-weight:700;font-variant-numeric:tabular-nums}
 
-  #searchWrap{position:fixed;left:10px;right:10px;top:calc(var(--sat) + 54px);z-index:30;display:none;}
-  #searchWrap.show{display:block;}
-  #qbox{display:flex;align-items:center;gap:9px;padding:12px 15px;border-radius:14px;
-    border:1px solid var(--line);background:rgba(17,23,34,.97);backdrop-filter:blur(18px);}
-  #q{flex:1;background:none;border:0;outline:none;color:var(--txt);font-size:15px;font-family:inherit;}
-  #q::placeholder{color:#556;}
-  #results{max-height:52vh;overflow-y:auto;margin-top:7px;border-radius:14px;
-    background:rgba(17,23,34,.98);border:1px solid var(--line);-webkit-overflow-scrolling:touch;}
-  .res{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;
-    display:flex;justify-content:space-between;gap:8px;font-size:12.5px;}
-  .res:active{background:rgba(57,210,155,.13);}
-  .res .en{font-size:9.5px;color:var(--dim);direction:ltr;text-align:right;margin-top:2px;}
-  .res .tag{font-size:9px;color:#03130c;background:var(--acc);padding:3px 7px;border-radius:6px;flex:0 0 auto;font-weight:700;}
-  .empty{padding:16px;text-align:center;color:var(--dim);font-size:12px;}
+/* ── شريط علوي ── */
+#top{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(env(safe-area-inset-top) + 9px) 11px 9px;
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(180deg,rgba(10,14,20,.96),rgba(10,14,20,0));pointer-events:none}
+#top>*{pointer-events:auto}
+.tbtn{width:40px;height:40px;border-radius:12px;background:rgba(19,26,36,.92);border:1px solid var(--line);
+  color:var(--txt);display:flex;align-items:center;justify-content:center;font-size:17px;backdrop-filter:blur(14px)}
+.tbtn.on{background:var(--acc);color:#101418;border-color:var(--acc)}
+#title{flex:1;text-align:center;font-size:12.5px;color:var(--dim);font-weight:600}
 
-  #card{position:fixed;left:10px;right:10px;bottom:calc(var(--sab) + 132px);z-index:26;
-    background:rgba(17,23,34,.97);backdrop-filter:blur(20px);border:1px solid var(--line);
-    border-radius:16px;padding:13px 15px;display:none;box-shadow:0 12px 40px rgba(0,0,0,.6);}
-  #card.show{display:block;animation:rise .2s ease;}
-  @keyframes rise{from{opacity:0;transform:translateY(9px);}to{opacity:1;transform:none;}}
-  #cTop{display:flex;gap:9px;align-items:flex-start;}
-  #cName{font-size:14.5px;font-weight:800;flex:1;line-height:1.35;}
-  #cTag{font-size:9px;padding:3px 8px;border-radius:6px;background:var(--panel2);color:var(--dim);flex:0 0 auto;}
-  #cActs{display:flex;gap:8px;margin-top:11px;}
-  #cActs button{flex:1;border:1px solid var(--line);background:var(--panel2);color:var(--txt);
-    border-radius:11px;padding:9px;font-size:11.5px;font-family:inherit;cursor:pointer;}
-  #cActs button.primary{background:var(--acc);color:#03130c;border-color:var(--acc);font-weight:700;}
+/* ── شريط أدوات سفلي ── */
+#tools{position:fixed;bottom:0;left:0;right:0;z-index:30;
+  padding:9px 9px calc(env(safe-area-inset-bottom) + 9px);
+  display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
+  background:linear-gradient(0deg,rgba(10,14,20,.97),rgba(10,14,20,.6) 70%,transparent)}
+.tool{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;border-radius:12px;
+  background:rgba(19,26,36,.9);border:1px solid var(--line);color:var(--dim);font-size:9.5px;
+  font-family:inherit;backdrop-filter:blur(14px);transition:.15s}
+.tool i{font-size:17px;font-style:normal;line-height:1}
+.tool.on{background:var(--acc);color:#101418;border-color:var(--acc)}
+.tool:active{transform:scale(.94)}
 
-  #dock{position:fixed;left:0;right:0;bottom:0;z-index:22;
-    background:rgba(14,19,27,.97);backdrop-filter:blur(22px);border-top:1px solid var(--line);
-    border-radius:22px 22px 0 0;padding:8px 12px calc(var(--sab) + 10px);
-    transition:transform .28s cubic-bezier(.32,.9,.32,1);}
-  #dock.down{transform:translateY(calc(100% - 42px));}
-  #dockTop{display:flex;align-items:center;gap:8px;padding-bottom:6px;}
-  #grab{width:32px;height:4px;border-radius:3px;background:#31404f;flex:0 0 auto;cursor:pointer;}
-  #dockLabel{font-size:10.5px;color:var(--dim);flex:1;}
-  #sysRow{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;}
-  #sysRow::-webkit-scrollbar{display:none;}
-  .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:#9aa8bb;
-    border-radius:11px;padding:8px 12px;font-size:11.5px;font-family:inherit;cursor:pointer;white-space:nowrap;}
-  .chip.on{background:var(--acc);color:#03130c;border-color:var(--acc);font-weight:700;}
-  #tools{display:flex;gap:6px;}
-  .tbtn{flex:1;border:1px solid var(--line);background:var(--panel2);color:#aab6c6;
-    border-radius:11px;padding:8px 3px;font-size:10px;font-family:inherit;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:2px;}
-  .tbtn .g{font-size:14px;line-height:1;}
-  .tbtn.on{background:var(--acc);color:#03130c;border-color:var(--acc);font-weight:700;}
+/* ── بطاقة الجزء ── */
+#partInfo{position:fixed;left:11px;right:11px;bottom:calc(env(safe-area-inset-bottom) + 86px);z-index:35;
+  background:rgba(19,26,36,.97);border:1px solid var(--line);border-radius:17px;padding:14px;
+  backdrop-filter:blur(20px);transform:translateY(140%);transition:transform .3s cubic-bezier(.3,1.2,.5,1);
+  box-shadow:0 -8px 34px rgba(0,0,0,.6);pointer-events:none;visibility:hidden}
+#partInfo.show{transform:translateY(0);pointer-events:auto;visibility:visible}
+#partAr{font-size:16px;font-weight:700;margin-bottom:2px}
+#partEn{font-size:11px;color:var(--acc);direction:ltr;text-align:right;margin-bottom:8px}
+#partGroup{font-size:10px;color:var(--dim)}
+.pi-btns{display:flex;gap:7px;margin-top:11px}
+.pi-btns button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-family:inherit;font-size:11.5px;font-weight:600}
+.pi-btns button.on{background:var(--acc);color:#101418;border-color:var(--acc)}
 
-  #gate{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at 50% 30%,#101a26,#080b10 72%);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-    padding:26px;text-align:center;}
-  #gate.out{opacity:0;pointer-events:none;transition:opacity .45s;}
-  #gate h1{margin:0;font-size:33px;font-weight:800;letter-spacing:-1px;}
-  #gate h1 span{color:var(--acc);}
-  #gate .sub{margin:0;color:var(--dim);font-size:13px;line-height:1.75;max-width:300px;}
-  #stats{display:flex;gap:20px;margin:6px 0 2px;}
-  #stats div{text-align:center;}
-  #stats b{display:block;font-size:18px;color:var(--acc);font-weight:800;}
-  #stats small{font-size:9px;color:var(--dim);}
-  #prog{width:min(280px,80vw);height:4px;background:#1a2432;border-radius:3px;overflow:hidden;}
-  #progBar{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));
-    border-radius:3px;transition:width .3s;}
-  #progTxt{font-size:11px;color:var(--dim);min-height:15px;max-width:300px;}
-  #go{background:var(--acc);color:#03130c;border:0;border-radius:999px;padding:15px 46px;
-    font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;}
-  #go:disabled{opacity:.4;}
-  #cred{position:absolute;bottom:calc(var(--sab) + 12px);left:18px;right:18px;
-    font-size:9px;color:#39465a;line-height:1.5;}
+/* ── أزرار دوران ── */
+#rot{position:fixed;left:11px;bottom:calc(env(safe-area-inset-bottom) + 96px);z-index:29;
+  display:flex;flex-direction:column;gap:4px;transition:opacity .2s}
+#rot button{width:34px;height:34px;border-radius:10px;background:rgba(19,26,36,.85);
+  border:1px solid var(--line);color:var(--dim);font-size:13px;backdrop-filter:blur(10px)}
 
-  #badge{position:fixed;top:calc(var(--sat) + 54px);left:50%;transform:translateX(-50%);
-    z-index:32;background:rgba(17,23,34,.96);border:1px solid var(--line);border-radius:999px;
-    padding:7px 14px;font-size:10.5px;color:var(--acc);display:none;align-items:center;
-    gap:7px;max-width:88vw;white-space:nowrap;}
-  #badge.show{display:flex;}
-  .spin{width:11px;height:11px;border:2px solid rgba(57,210,155,.25);border-top-color:var(--acc);
-    border-radius:50%;animation:sp .7s linear infinite;flex:0 0 auto;}
-  @keyframes sp{to{transform:rotate(360deg);}}
+/* ── نوافذ منسدلة ── */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(6,9,13,.8);backdrop-filter:blur(7px);
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .24s}
+.sheet.show{opacity:1;pointer-events:auto}
+.sheet-in{width:100%;max-height:83vh;background:var(--panel);border-radius:23px 23px 0 0;
+  border-top:1px solid var(--line);padding:8px 0 calc(env(safe-area-inset-bottom) + 14px);
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.3,1.15,.5,1);overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.sheet.show .sheet-in{transform:translateY(0)}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 13px}
+.sh-h{display:flex;align-items:center;justify-content:space-between;padding:0 18px 13px}
+.sh-h h2{font-size:17px;font-weight:700}
+.sh-h button{background:none;border:none;color:var(--dim);font-size:22px;line-height:1;font-family:inherit}
+
+/* بحث */
+#searchWrap{padding:0 16px 13px}
+#q2{width:100%;padding:13px 15px;border-radius:13px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-size:15px;font-family:inherit;outline:none}
+#q2:focus{border-color:var(--acc)}
+.res{padding:11px 16px;border-bottom:1px solid rgba(36,48,64,.5)}
+.res:active{background:var(--panel2)}
+.res-ar{font-size:14px;font-weight:600;margin-bottom:1px}
+.res-en{font-size:10.5px;color:var(--dim);direction:ltr;text-align:right}
+.res-empty{padding:30px;text-align:center;color:var(--dim);font-size:13px}
+#results2{max-height:52vh;overflow-y:auto}
+
+/* جولات */
+#tourList{padding:0 14px;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tour{background:var(--panel2);border:1px solid var(--line);border-radius:15px;padding:15px 12px;
+  display:flex;flex-direction:column;gap:7px;align-items:center;text-align:center}
+.tour:active{transform:scale(.96)}
+.tour-ic{font-size:27px}
+.tour-ar{font-size:13px;font-weight:700}
+.tour-n{font-size:9.5px;color:var(--dim)}
+
+/* شريط الجولة */
+#tourBar{position:fixed;left:11px;right:11px;bottom:calc(env(safe-area-inset-bottom) + 86px);z-index:45;
+  background:rgba(19,26,36,.98);border:1px solid var(--acc);border-radius:17px;padding:13px;
+  transform:translateY(160%);transition:transform .3s cubic-bezier(.3,1.2,.5,1);
+  box-shadow:0 -8px 34px rgba(255,159,67,.15);pointer-events:none;visibility:hidden}
+#tourBar.show{transform:translateY(0);pointer-events:auto;visibility:visible}
+#tourFillWrap{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:10px}
+#tourFill{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+#tourTxt{font-size:14px;font-weight:600;line-height:1.6;margin-bottom:9px}
+.tb-row{display:flex;gap:7px;align-items:center}
+#tourProg{font-size:11px;color:var(--dim);flex:1;font-variant-numeric:tabular-nums}
+.tb-row button{padding:8px 15px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-family:inherit;font-size:11.5px;font-weight:600}
+.tb-row button.pri{background:var(--acc);color:#101418;border-color:var(--acc)}
+
+/* اختبار */
+#quizIntro,#quizRes{padding:20px 22px}
+.qi-ic{font-size:46px;text-align:center;margin-bottom:13px}
+#quizIntro h3{font-size:18px;text-align:center;margin-bottom:7px}
+#quizIntro p{font-size:12.5px;color:var(--dim);text-align:center;line-height:1.75;margin-bottom:19px}
+.big-btn{width:100%;padding:14px;border-radius:13px;border:none;
+  background:linear-gradient(135deg,var(--acc),#ff6b35);color:#101418;
+  font-size:15.5px;font-weight:800;font-family:inherit}
+#quizBox{padding:18px}
+#quizMeta{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:8px}
+#quizFillWrap{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:18px}
+#quizFill{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+#quizQ{font-size:12px;color:var(--dim);margin-bottom:7px}
+#quizTarget{font-size:23px;font-weight:800;margin-bottom:20px;line-height:1.35}
+.qopt{width:100%;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--txt);font-family:inherit;font-size:13px;margin-bottom:7px;text-align:right;
+  direction:ltr;transition:.15s}
+.qopt.ok{background:rgba(56,211,159,.16);border-color:var(--ok);color:var(--ok)}
+.qopt.bad{background:rgba(255,92,108,.16);border-color:var(--bad);color:var(--bad)}
+.qr-num{font-size:56px;font-weight:800;text-align:center;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;line-height:1;margin-bottom:5px}
+.qr-sub{text-align:center;font-size:13px;color:var(--dim);margin-bottom:20px}
+.qr-list{margin-bottom:19px}
+.qr-row{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid rgba(36,48,64,.5);font-size:12px}
+.qr-row.ok span:first-child{color:var(--ok)}
+.qr-row.bad span:first-child{color:var(--bad)}
+.qr-t{direction:ltr;text-align:right;flex:1;color:var(--dim)}
+
+/* أنظمة / مفضلة */
+#sysList,#favList{padding:0 14px;max-height:56vh;overflow-y:auto}
+.sysrow{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid rgba(36,48,64,.5)}
+.sysrow input{width:19px;height:19px;accent-color:var(--acc)}
+.sys-name{flex:1;font-size:13px}
+.sys-n{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.favrow{padding:12px 4px;border-bottom:1px solid rgba(36,48,64,.5)}
+.fav-ar{font-size:13px;font-weight:600;display:block}
+.fav-en{font-size:10px;color:var(--dim);direction:ltr;text-align:right}
+.empty{padding:34px;text-align:center;color:var(--dim);font-size:12.5px}
+
+.badge{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:90;
+  background:rgba(19,26,36,.97);border:1px solid var(--line);border-radius:13px;padding:13px 22px;
+  font-size:13px;color:var(--dim);opacity:0;pointer-events:none;transition:opacity .25s}
+.badge.show{opacity:1}
 </style>
 </head>
 <body>
-<div id="view"></div>
 
-<div id="top">
-  <button class="ib" id="btnSearch">⌕</button>
-  <div id="brand">أت<span>لس</span><small>تشريح ثلاثي الأبعاد</small></div>
-  <div id="hud"></div>
-  <button class="ib" id="btnReset">⟲</button>
-</div>
+<canvas id="cv"></canvas>
 
-<div id="searchWrap">
-  <div id="qbox">
-    <span style="color:#556;font-size:15px">⌕</span>
-    <input id="q" type="search" placeholder="ابحث… Heart, Femur, Liver" autocomplete="off" spellcheck="false">
-    <button class="ib" id="qClose" style="width:30px;height:30px;font-size:13px">✕</button>
-  </div>
-  <div id="results"></div>
-</div>
-
-<div id="badge"><div class="spin"></div><span id="badgeTxt">…</span></div>
-
-<div id="card">
-  <div id="cTop"><div id="cName">—</div><div id="cTag">—</div></div>
-  <div id="cActs">
-    <button id="cIso" class="primary">إفراد</button>
-    <button id="cClose">رجوع</button>
-  </div>
-</div>
-
-<div id="dock">
-  <div id="dockTop">
-    <div id="grab"></div>
-    <div id="dockLabel">المجموعات</div>
-  </div>
-  <div id="sysRow"></div>
-  <div id="tools">
-    <button class="tbtn" id="tSpin"><span class="g">◎</span>دوران</button>
-    <button class="tbtn" id="tXray"><span class="g">◍</span>أشعة</button>
-    <button class="tbtn" id="tReset"><span class="g">⤢</span>ملء</button>
-    <button class="tbtn" id="tHide"><span class="g">▾</span>إخفاء</button>
-  </div>
-</div>
-
+<!-- بوابة -->
 <div id="gate">
-  <h1>أت<span>لس</span></h1>
-  <p class="sub">نماذج تشريح ثلاثية الأبعاد — تعمل على جهازك بلا إنترنت.</p>
-  <div id="stats">
-    <div><b id="sN">—</b><small>نموذجًا</small></div>
-    <div><b id="sG">—</b><small>مجموعة</small></div>
-    <div><b>0</b><small>سيرفر</small></div>
+  <div class="logo">🫀</div>
+  <h1>أطلس التشريح ثلاثي الأبعاد</h1>
+  <div class="sub">20,320 نموذجًا أصليًا · يعمل بلا إنترنت</div>
+  <div class="stats">
+    <div><b id="sG">98</b>مجموعة</div>
+    <div><b id="sN">0</b>جزء</div>
+    <div><b id="sT">20,320</b>إجمالي</div>
   </div>
-  <div id="prog"><i id="progBar"></i></div>
-  <div id="progTxt">يُحضّر…</div>
-  <button id="go" disabled>ابدأ</button>
-  <div id="cred">نماذج ثلاثية الأبعاد · تعمل داخل المتصفح بلا إنترنت</div>
+  <div id="progBar"></div>
+  <div id="progTxt">يُجهّز…</div>
+  <button id="go" disabled>ابدأ الاستكشاف</button>
 </div>
 
-<script type="importmap">
-{"imports":{"three":"./vendor/three.module.js"}}
-</script>
-<script type="module">
-import * as THREE from './vendor/three.module.js';
-import { GLTFLoader } from './vendor/GLTFLoader.js';
-import { DRACOLoader } from './vendor/DRACOLoader.js';
+<!-- شريط علوي -->
+<div id="top">
+  <button class="tbtn" id="searchBtn">🔍</button>
+  <div id="title">أطلس التشريح</div>
+  <button class="tbtn" id="sysBtn">☰</button>
+</div>
 
-/* ═══ الإعداد ═══ */
-const MANIFEST_URL = "manifest.json";
-const MODEL_BASE = "./models/";   // النماذج على GitHub Releases
-const S = {
-  renderer:null, scene:null, camera:null,
-  groups:[],        // [{file, count, ...}]
-  loaded:{},        // file → {root, meshes[]}
-  names:{},         // file → [أسماء]
-  index:[],         // بحث
-  visible:{}, selected:null, isolated:null,
-  spin:false, xray:false, ready:false,
-  ptr:new THREE.Vector2(), ray:new THREE.Raycaster()
-};
-const CAM = {theta:0, phi:Math.PI/2, dist:1500, tTheta:0, tPhi:Math.PI/2, tDist:1500,
-             target:new THREE.Vector3()};
-const $ = s => document.querySelector(s);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+<!-- أدوات -->
+<div id="tools">
+  <button class="tool" id="tourBtn"><i>🧭</i>جولات</button>
+  <button class="tool" id="quizBtn"><i>📝</i>اختبار</button>
+  <button class="tool" id="favOpen"><i>⭐</i>مفضلة</button>
+  <button class="tool" id="animBtn"><i>🔄</i>دوران</button>
+  <button class="tool" id="xrayBtn"><i>👁</i>شفافية</button>
+  <button class="tool" id="resetBtn"><i>⌂</i>إعادة</button>
+</div>
 
-/* ═══ المشهد ═══ */
-function initScene(){
-  const r = new THREE.WebGLRenderer({antialias:true, powerPreference:"high-performance"});
-  r.setPixelRatio(Math.min(devicePixelRatio||1, 2));
-  r.setSize(innerWidth, innerHeight);
-  r.outputColorSpace = THREE.SRGBColorSpace;
-  $("#view").appendChild(r.domElement);
-  S.renderer = r;
+<!-- دوران -->
+<div id="rot">
+  <button id="rotU">▲</button>
+  <button id="rotL">◀</button>
+  <button id="rotR">▶</button>
+  <button id="rotD">▼</button>
+</div>
 
-  const sc = new THREE.Scene();
-  sc.background = new THREE.Color(0x080b10);
-  S.scene = sc;
+<!-- بطاقة الجزء -->
+<div id="partInfo">
+  <div id="partAr"></div>
+  <div id="partEn"></div>
+  <div id="partGroup"></div>
+  <div class="pi-btns">
+    <button id="isoBtn">عزل</button>
+    <button id="favBtn">⭐ مفضلة</button>
+  </div>
+</div>
 
-  S.camera = new THREE.PerspectiveCamera(36, innerWidth/innerHeight, 0.1, 20000);
+<!-- شريط الجولة -->
+<div id="tourBar">
+  <div id="tourFillWrap"><div id="tourFill"></div></div>
+  <div id="tourTxt"></div>
+  <div class="tb-row">
+    <span id="tourProg"></span>
+    <button id="tourEnd">إنهاء</button>
+    <button class="pri" id="tourNext">التالي ›</button>
+  </div>
+</div>
 
-  sc.add(new THREE.HemisphereLight(0xd0e2ff, 0x0e1620, 1.3));
-  const k1=new THREE.DirectionalLight(0xffffff,2.2); k1.position.set(600,900,1300);
-  const k2=new THREE.DirectionalLight(0xa8c8ff,0.95); k2.position.set(-900,250,600);
-  const k3=new THREE.DirectionalLight(0x39d29b,0.5);  k3.position.set(0,-700,-1000);
-  sc.add(k1,k2,k3);
+<!-- نافذة البحث -->
+<div class="sheet" id="searchSheet">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div class="sh-h"><h2>ابحث عن عضو</h2><button data-close="searchSheet">✕</button></div>
+    <div id="searchWrap"><input id="q2" placeholder="مثال: قلب، عصب، فقرة…" autocomplete="off"></div>
+    <div id="results2"></div>
+  </div>
+</div>
 
-  bindCam(r.domElement);
-  addEventListener("resize",()=>{
-    S.camera.aspect=innerWidth/innerHeight; S.camera.updateProjectionMatrix();
-    r.setSize(innerWidth,innerHeight);
-  });
-  loop();
-}
+<!-- نافذة الجولات -->
+<div class="sheet" id="tourSheet">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div class="sh-h"><h2>الجولات التشريحية</h2><button data-close="tourSheet">✕</button></div>
+    <div id="tourList"></div>
+  </div>
+</div>
 
-function bindCam(dom){
-  let drag=false,lx=0,ly=0,dx=0,dy=0,dt=0;
-  dom.addEventListener("pointerdown",e=>{
-    drag=true;lx=e.clientX;ly=e.clientY;dx=e.clientX;dy=e.clientY;dt=performance.now();
-    try{dom.setPointerCapture(e.pointerId);}catch(_){}
-  });
-  dom.addEventListener("pointermove",e=>{
-    if(!drag)return;
-    CAM.tTheta-=(e.clientX-lx)*0.0056;
-    CAM.tPhi=clamp(CAM.tPhi-(e.clientY-ly)*0.0056,0.12,Math.PI-0.12);
-    lx=e.clientX;ly=e.clientY;
-  });
-  dom.addEventListener("pointerup",e=>{
-    if(!drag)return;drag=false;
-    if(Math.hypot(e.clientX-dx,e.clientY-dy)<10 && performance.now()-dt<350) pick(e.clientX,e.clientY);
-  });
-  dom.addEventListener("wheel",e=>{
-    e.preventDefault();
-    CAM.tDist=clamp(CAM.tDist*(1+Math.sign(e.deltaY)*0.13),0.05,8000);
-  },{passive:false});
-  let pinch=null;
-  dom.addEventListener("touchstart",e=>{
-    if(e.touches.length===2) pinch=Math.hypot(
-      e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-  },{passive:true});
-  dom.addEventListener("touchmove",e=>{
-    if(e.touches.length===2&&pinch){
-      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
-                         e.touches[0].clientY-e.touches[1].clientY);
-      CAM.tDist=clamp(CAM.tDist*(pinch/d),0.05,8000); pinch=d;
-    }
-  },{passive:true});
-  dom.addEventListener("touchend",()=>{pinch=null;});
-}
+<!-- نافذة الاختبار -->
+<div class="sheet" id="quizSheet">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div id="quizIntro">
+      <div class="qi-ic">📝</div>
+      <h3>اختبر معرفتك التشريحية</h3>
+      <p>8 أسئلة · يتغيّر كل مرة<br>اختر الاسم العلمي الصحيح للجزء</p>
+      <button class="big-btn" id="quizStart">ابدأ الاختبار</button>
+    </div>
+    <div id="quizBox" style="display:none">
+      <div id="quizMeta"><span id="quizN">1 / 8</span><span>اختر الإجابة</span></div>
+      <div id="quizFillWrap"><div id="quizFill"></div></div>
+      <div id="quizQ"></div>
+      <div id="quizTarget"></div>
+      <div id="quizOpts"></div>
+    </div>
+    <div id="quizRes" style="display:none">
+      <div class="qr-num"></div>
+      <div class="qr-sub"></div>
+      <div class="qr-list"></div>
+      <button class="big-btn" id="quizAgain">أعد الاختبار</button>
+      <button class="big-btn" id="quizClose" style="margin-top:8px;background:var(--panel2);color:var(--txt)">إغلاق</button>
+    </div>
+  </div>
+</div>
 
-function loop(){
-  requestAnimationFrame(loop);
-  CAM.theta+=(CAM.tTheta-CAM.theta)*0.15;
-  CAM.phi  +=(CAM.tPhi  -CAM.phi  )*0.15;
-  CAM.dist +=(CAM.tDist -CAM.dist )*0.15;
-  if(S.spin) CAM.tTheta+=0.0055;
-  const s=Math.sin(CAM.phi);
-  S.camera.position.set(
-    CAM.target.x+CAM.dist*s*Math.sin(CAM.theta),
-    CAM.target.y+CAM.dist*Math.cos(CAM.phi),
-    CAM.target.z+CAM.dist*s*Math.cos(CAM.theta));
-  S.camera.lookAt(CAM.target);
-  S.renderer.render(S.scene,S.camera);
-}
+<!-- نافذة الأنظمة -->
+<div class="sheet" id="sysSheet">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div class="sh-h"><h2>المجموعات</h2><button data-close="sysSheet">✕</button></div>
+    <div id="sysList"></div>
+  </div>
+</div>
 
-/* ═══ التحميل ═══ */
-async function boot(){
-  initScene();
-  bindUI();
+<!-- نافذة المفضلة -->
+<div class="sheet" id="favSheet">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div class="sh-h"><h2>المفضلة</h2><button data-close="favSheet">✕</button></div>
+    <div id="favList"></div>
+  </div>
+</div>
 
-  let man = {groups:[], names:{}};
-  try{
-    const r = await fetch(MANIFEST_URL);
-    if(r.ok) man = await r.json();
-  }catch(_){}
+<div class="badge" id="badge"><span id="badgeTxt"></span></div>
 
-  S.groups = man.groups || [];
-  S.names = man.names || {};
-  $("#sG").textContent = S.groups.length;
-
-  const draco = new DRACOLoader();
-  draco.setDecoderPath("./vendor/draco/");
-  const loader = new GLTFLoader();
-  loader.setDRACOLoader(draco);
-
-  const bar=$("#progBar"), txt=$("#progTxt"), badge=$("#badge");
-
-  // ═══ تحميل تدريجي: أكبر مجموعة أولًا، والباقي في الخلفية ═══
-  const queue = [...S.groups].sort((a,b)=>(b.count||0)-(a.count||0));
-  let done=0, totalMeshes=0;
-  const FIRST_BATCH = 1;      // نُظهر شيئًا فورًا
-
-  async function loadGroup(g, showBadge){
-    const label = `يُحمّل ${g.name}…`;
-    if(showBadge){ badge.classList.add("show"); $("#badgeTxt").textContent = label; }
-    txt.textContent = label;
-    try{
-      const url = MODEL_BASE + g.file.split("/").pop();
-      const gltf = await loader.loadAsync(url, ev=>{
-        if(ev.lengthComputable && showBadge)
-          bar.style.width = (ev.loaded/ev.total*100).toFixed(1)+"%";
-      });
-      const meshes=[];
-      const names = S.names[g.name] || [];
-      let i=0;
-      gltf.scene.traverse(o=>{
-        if(!o.isMesh) return;
-        o.userData.group = g.name;
-        o.userData.en = (names[i] || o.name || `جزء ${i}`).replace(/_/g," ").trim();
-        i++;
-        if(o.material){
-          o.material.side = THREE.DoubleSide;
-          o.material.roughness = 0.62; o.material.metalness = 0.04;
-          o.material.transparent = true; o.material.opacity = 1;
-        }
-        meshes.push(o);
-      });
-      S.scene.add(gltf.scene);
-      S.loaded[g.name] = {root:gltf.scene, meshes};
-      S.visible[g.name] = true;
-      totalMeshes += meshes.length;
-      return meshes.length;
-    }catch(e){
-      return 0;
-    }
-  }
-
-  // ① أول مجموعة — ثم نُظهر الزر فورًا
-  if(queue.length){
-    await loadGroup(queue[0], true);
-    buildChips(); buildIndex(); fit();
-    $("#sN").textContent = totalMeshes.toLocaleString("en-US");
-    $("#go").disabled = false;
-    S.ready = true;
-    bar.style.width="100%";
-    txt.textContent = `أول ${totalMeshes.toLocaleString("en-US")} نموذجًا جاهز — الباقي يُحمّل في الخلفية`;
-    badge.classList.remove("show");
-  }
-
-  // ② الباقي بهدوء في الخلفية
-  (async()=>{
-    for(let k=1;k<queue.length;k++){
-      const g = queue[k];
-      try{
-        const cnt = await loadGroup(g, false);
-        if(cnt){
-          S.visible[g.name] = true;
-          totalMeshes += cnt;
-          // حدّث الشرائح بهدوء
-          const row=$("#sysRow");
-          const b2=document.createElement("button");
-          b2.className="chip on"; b2.dataset.id=g.name;
-          b2.textContent=(g.name||"").replace("sharedassets","مجموعة ");
-          b2.onclick=()=>{
-            S.visible[g.name]=!S.visible[g.name];
-            b2.classList.toggle("on",S.visible[g.name]);
-            for(const m of S.loaded[g.name].meshes) m.visible=S.visible[g.name];
-          };
-          row.appendChild(b2);
-          $("#sN").textContent = totalMeshes.toLocaleString("en-US");
-          buildIndex();
-        }
-      }catch(_){}
-      txt.textContent = `${k+1}/${queue.length}`;
-    }
-    txt.textContent = `اكتمل — ${totalMeshes.toLocaleString("en-US")} نموذجًا`;
-    S.allLoaded = true;
-  })();
-
-  return;
-
-}
-
-/* ═══ واجهة المجموعات ═══ */
-function buildChips(){
-  const row = $("#sysRow");
-  row.innerHTML = "";
-  for(const id in S.loaded){
-    const b=document.createElement("button");
-    b.className="chip on"; b.dataset.id=id;
-    b.textContent = id.replace("sharedassets","مجموعة ");
-    b.onclick=()=>{
-      S.visible[id]=!S.visible[id];
-      b.classList.toggle("on",S.visible[id]);
-      for(const m of S.loaded[id].meshes) m.visible=S.visible[id];
-    };
-    row.appendChild(b);
-  }
-}
-
-/* ═══ بحث ═══ */
-function buildIndex(){
-  S.index.length=0;
-  for(const id in S.loaded){
-    for(const m of S.loaded[id].meshes){
-      const en=m.userData.en; if(!en||en.length<2) continue;
-      S.index.push({en, group:id, mesh:m, low:en.toLowerCase()});
-    }
-  }
-}
-function search(q){
-  q=(q||"").trim().toLowerCase();
-  if(q.length<2) return [];
-  const out=[];
-  for(const it of S.index){
-    if(it.low.includes(q)){ out.push(it); if(out.length>=80) break; }
-  }
-  return out;
-}
-
-/* ═══ اختيار ═══ */
-function pick(cx,cy){
-  if(!S.ready)return;
-  const r=S.renderer.domElement.getBoundingClientRect();
-  S.ptr.x=((cx-r.left)/r.width)*2-1;
-  S.ptr.y=-((cy-r.top)/r.height)*2+1;
-  S.ray.setFromCamera(S.ptr,S.camera);
-  const targets=[];
-  for(const id in S.loaded){ if(!S.visible[id])continue;
-    for(const m of S.loaded[id].meshes) if(m.visible) targets.push(m); }
-  const hit=S.ray.intersectObjects(targets,false);
-  if(!hit.length){ deselect(); return; }
-  select(hit[0].object);
-}
-function select(mesh){
-  deselect(true);
-  S.selected=mesh;
-  if(mesh.material && mesh.material.emissive && !S.xray){
-    mesh.userData._em=mesh.material.emissive.getHex();
-    mesh.material.emissive.setHex(0x1a5c40);
-  }
-  const box=new THREE.Box3().setFromObject(mesh);
-  CAM.target.copy(box.getCenter(new THREE.Vector3()));
-  $("#cName").textContent = mesh.userData.en;
-  $("#cTag").textContent = (mesh.userData.group||"").replace("sharedassets","مجموعة ");
-  $("#card").classList.add("show");
-  $("#cIso").onclick=()=>isolate(mesh);
-  $("#cClose").onclick=()=>{deselect();unisolate();};
-}
-function deselect(keep){
-  if(S.selected&&S.selected.material&&S.selected.material.emissive&&S.selected.userData._em!=null){
-    S.selected.material.emissive.setHex(S.selected.userData._em);
-    S.selected.userData._em=null;
-  }
-  S.selected=null;
-  if(!keep) $("#card").classList.remove("show");
-}
-function isolate(mesh){
-  for(const id in S.loaded) for(const m of S.loaded[id].meshes) m.visible=(m===mesh);
-  mesh.visible=true;
-  const b=new THREE.Box3().setFromObject(mesh);
-  const s=b.getSize(new THREE.Vector3());
-  CAM.target.copy(b.getCenter(new THREE.Vector3()));
-  CAM.tDist=Math.max(s.x,s.y,s.z)*2.8;
-  S.isolated=mesh;
-  $("#card").classList.remove("show");
-}
-function unisolate(){
-  if(!S.isolated)return;
-  for(const id in S.loaded){
-    const v=S.visible[id];
-    for(const m of S.loaded[id].meshes) m.visible=v;
-  }
-  S.isolated=null; fit();
-}
-function fit(){
-  S.scene.updateMatrixWorld(true);
-  const box=new THREE.Box3();
-  for(const id in S.loaded) if(S.visible[id]) box.expandByObject(S.loaded[id].root);
-  if(box.isEmpty())return;
-  const size=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3());
-  const maxDim=Math.max(size.x,size.y,size.z);
-  if(maxDim>0){
-    S.camera.near=maxDim/600; S.camera.far=maxDim*80; S.camera.updateProjectionMatrix();
-  }
-  const fov=S.camera.fov*Math.PI/180, aspect=S.camera.aspect||1;
-  const dH=(size.y/2)/Math.tan(fov/2);
-  const dW=(Math.max(size.x,size.z)/2)/(Math.tan(fov/2)*aspect);
-  const visH=Math.max(0.5,(innerHeight-200)/innerHeight);
-  CAM.target.copy(ctr);
-  CAM.tDist=CAM.dist=Math.max(dH,dW)/visH*0.98;
-  CAM.tTheta=CAM.theta=0; CAM.tPhi=CAM.phi=Math.PI/2;
-  $("#hud").innerHTML=`${size.y.toFixed(2)}u<br>${Math.round(CAM.dist)}`;
-}
-
-/* ═══ الواجهة ═══ */
-function bindUI(){
-  const wrap=$("#searchWrap"), q=$("#q");
-  $("#btnSearch").onclick=()=>{
-    wrap.classList.toggle("show");
-    if(wrap.classList.contains("show")) setTimeout(()=>q.focus(),80);
-  };
-  $("#qClose").onclick=()=>{wrap.classList.remove("show");q.blur();};
-  q.addEventListener("input",()=>{
-    const box=$("#results"); const res=search(q.value);
-    box.innerHTML="";
-    if(!q.value.trim())return;
-    if(!res.length){box.innerHTML='<div class="empty">لا نتائج</div>';return;}
-    for(const it of res.slice(0,50)){
-      const d=document.createElement("div"); d.className="res";
-      d.innerHTML=`<div>${it.en}<div class="en">${it.group.replace("sharedassets","group ")}</div></div>`;
-      d.onclick=()=>{
-        wrap.classList.remove("show");q.blur();
-        if(!S.visible[it.group]){
-          S.visible[it.group]=true;
-          const c=document.querySelector(`.chip[data-id="${it.group}"]`);
-          if(c)c.classList.add("on");
-          for(const m of S.loaded[it.group].meshes) m.visible=true;
-        }
-        unisolate(); select(it.mesh);
-      };
-      box.appendChild(d);
-    }
-  });
-
-  const tSpin=$("#tSpin");
-  tSpin.onclick=()=>{S.spin=!S.spin;tSpin.classList.toggle("on",S.spin);};
-  const tX=$("#tXray");
-  tX.onclick=()=>{
-    S.xray=!S.xray; tX.classList.toggle("on",S.xray);
-    for(const id in S.loaded) for(const m of S.loaded[id].meshes){
-      if(!m.material)continue;
-      m.material.opacity=S.xray?0.34:1;
-      m.material.transparent=true;
-      m.material.depthWrite=!S.xray;
-    }
-  };
-  $("#tReset").onclick=()=>{deselect();unisolate();fit();};
-  const tHide=$("#tHide"),dock=$("#dock");
-  const tg=()=>{dock.classList.toggle("down");
-    tHide.querySelector(".g").textContent=dock.classList.contains("down")?"▴":"▾";};
-  tHide.onclick=tg; $("#grab").onclick=tg;
-  $("#btnReset").onclick=()=>{deselect();unisolate();fit();};
-  $("#go").onclick=()=>{
-    registerSW();
-    const g=$("#gate"); g.classList.add("out");
-    setTimeout(()=>g.style.display="none",460);
-  };
-  addEventListener("keydown",e=>{if(e.key==="Escape"){wrap.classList.remove("show");deselect();unisolate();}});
-}
-
-/* ═══ بلا إنترنت ═══ */
-async function registerSW(){
-  if(!("serviceWorker" in navigator))return;
-  if(location.protocol!=="https:" && !["localhost","127.0.0.1"].includes(location.hostname))return;
-  try{
-    await navigator.serviceWorker.register("sw.js",{scope:"./"});
-    await navigator.serviceWorker.ready;
-  }catch(_){}
-}
-
-window.__S=S; window.__T=THREE; window.__CAM=CAM;
-boot();
+<script type="module" src="./app_v2.js"></script>
+<script>
+if("serviceWorker" in navigator)
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
