@@ -122,7 +122,9 @@ async function loadGroup(loader, g) {
     if (!o.isMesh) return;
     o.userData.group = g.name;
     o.userData.idx = i;
-    o.userData.en = (names[i] || o.name || "").replace(/_/g, " ").replace(/__\d+$/, "").trim() || `جزء ${i + 1}`;
+    let raw = (names[i] || o.name || "").replace(/__\d+$/, "").replace(/_/g, " ").trim();
+    raw = raw.replace(/\s+\d{3,}$/, "").replace(/\s{2,}/g, " ").trim();
+    o.userData.en = raw || `جزء ${i + 1}`;
     o.userData.ar = translateAr(o.userData.en);
     i++;
     if (o.material) {
@@ -612,16 +614,22 @@ async function boot() {
   }
   const queue = [...S.groups].sort((a, b) => (b.count || 0) - (a.count || 0));
   let done = 0, total = 0;
-  for (const g of queue) {
-    try {
-      const n = await loadGroup(loader, g);
-      if (n) { total += n; done++; }
-      $("#progTxt").textContent = `${done}/${queue.length} · ${total.toLocaleString("en-US")} جزء`;
-      $("#progBar").style.width = (done / queue.length * 100) + "%";
-      $("#sN").textContent = total.toLocaleString("en-US");
-      if (done === 1) { buildIndex(); fit(); $("#go").disabled = false; S.ready = true; }
-    } catch (e) { console.warn("group fail", g.name, e); }
+  const CONC = 3;   // ثلاث مجموعات متوازية = أسرع 3×
+  async function worker() {
+    while (queue.length) {
+      const g = queue.shift();
+      if (!g) break;
+      try {
+        const n = await loadGroup(loader, g);
+        if (n) { total += n; done++; }
+        $("#progTxt").textContent = `${done}/${S.groups.length} · ${total.toLocaleString("en-US")} جزء`;
+        $("#progBar").style.width = (done / S.groups.length * 100) + "%";
+        $("#sN").textContent = total.toLocaleString("en-US");
+        if (done === 1) { buildIndex(); fit(); $("#go").disabled = false; S.ready = true; }
+      } catch (e) { console.warn("group fail", g.name, e); }
+    }
   }
+  await Promise.all(Array.from({length: CONC}, worker));
   buildIndex();
   renderSysList();
   $("#progTxt").textContent = `اكتمل — ${total.toLocaleString("en-US")} جزء`;
