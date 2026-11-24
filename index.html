@@ -298,57 +298,91 @@ async function boot(){
   loader.setDRACOLoader(draco);
 
   const bar=$("#progBar"), txt=$("#progTxt"), badge=$("#badge");
-  const N = S.groups.length || 1;
-  let done=0, totalMeshes=0, loadedGroups=0;
 
-  for(const g of S.groups){
-    const label = `يُحمّل ${g.name || g.file}…`;
-    txt.textContent = label; badge.classList.add("show"); $("#badgeTxt").textContent = label;
+  // ═══ تحميل تدريجي: أكبر مجموعة أولًا، والباقي في الخلفية ═══
+  const queue = [...S.groups].sort((a,b)=>(b.count||0)-(a.count||0));
+  let done=0, totalMeshes=0;
+  const FIRST_BATCH = 1;      // نُظهر شيئًا فورًا
+
+  async function loadGroup(g, showBadge){
+    const label = `يُحمّل ${g.name}…`;
+    if(showBadge){ badge.classList.add("show"); $("#badgeTxt").textContent = label; }
+    txt.textContent = label;
     try{
       const url = MODEL_BASE + g.file.split("/").pop();
       const gltf = await loader.loadAsync(url, ev=>{
-        if(ev.lengthComputable)
-          bar.style.width = (((done + ev.loaded/ev.total)/N)*100).toFixed(1)+"%";
+        if(ev.lengthComputable && showBadge)
+          bar.style.width = (ev.loaded/ev.total*100).toFixed(1)+"%";
       });
       const meshes=[];
-      const names = S.names[g.name] || S.names[g.file] || [];
+      const names = S.names[g.name] || [];
       let i=0;
       gltf.scene.traverse(o=>{
         if(!o.isMesh) return;
-        o.userData.group = g.name || g.file;
+        o.userData.group = g.name;
         o.userData.en = (names[i] || o.name || `جزء ${i}`).replace(/_/g," ").trim();
         i++;
         if(o.material){
           o.material.side = THREE.DoubleSide;
-          o.material.roughness = 0.62;
-          o.material.metalness = 0.04;
-          o.material.transparent = true;
-          o.material.opacity = 1;
+          o.material.roughness = 0.62; o.material.metalness = 0.04;
+          o.material.transparent = true; o.material.opacity = 1;
         }
         meshes.push(o);
       });
       S.scene.add(gltf.scene);
-      S.loaded[g.name || g.file] = {root:gltf.scene, meshes};
-      S.visible[g.name || g.file] = true;
+      S.loaded[g.name] = {root:gltf.scene, meshes};
+      S.visible[g.name] = true;
       totalMeshes += meshes.length;
-      loadedGroups++;
+      return meshes.length;
     }catch(e){
-      console.warn("fail", g.file, e && e.message);
+      return 0;
     }
-    done++;
-    bar.style.width=(done/N*100).toFixed(1)+"%";
-    txt.textContent = `${done}/${N} — ${totalMeshes.toLocaleString("en-US")} نموذجًا`;
-    await new Promise(r=>setTimeout(r,8));
   }
 
-  badge.classList.remove("show");
-  buildChips();
-  buildIndex();
-  fit();
-  $("#sN").textContent = totalMeshes.toLocaleString("en-US");
-  $("#progTxt").textContent = totalMeshes ? "جاهز" : "تعذّر تحميل المجموعات";
-  $("#go").disabled = false;
-  S.ready = true;
+  // ① أول مجموعة — ثم نُظهر الزر فورًا
+  if(queue.length){
+    await loadGroup(queue[0], true);
+    buildChips(); buildIndex(); fit();
+    $("#sN").textContent = totalMeshes.toLocaleString("en-US");
+    $("#go").disabled = false;
+    S.ready = true;
+    bar.style.width="100%";
+    txt.textContent = `أول ${totalMeshes.toLocaleString("en-US")} نموذجًا جاهز — الباقي يُحمّل في الخلفية`;
+    badge.classList.remove("show");
+  }
+
+  // ② الباقي بهدوء في الخلفية
+  (async()=>{
+    for(let k=1;k<queue.length;k++){
+      const g = queue[k];
+      try{
+        const cnt = await loadGroup(g, false);
+        if(cnt){
+          S.visible[g.name] = true;
+          totalMeshes += cnt;
+          // حدّث الشرائح بهدوء
+          const row=$("#sysRow");
+          const b2=document.createElement("button");
+          b2.className="chip on"; b2.dataset.id=g.name;
+          b2.textContent=(g.name||"").replace("sharedassets","مجموعة ");
+          b2.onclick=()=>{
+            S.visible[g.name]=!S.visible[g.name];
+            b2.classList.toggle("on",S.visible[g.name]);
+            for(const m of S.loaded[g.name].meshes) m.visible=S.visible[g.name];
+          };
+          row.appendChild(b2);
+          $("#sN").textContent = totalMeshes.toLocaleString("en-US");
+          buildIndex();
+        }
+      }catch(_){}
+      txt.textContent = `${k+1}/${queue.length}`;
+    }
+    txt.textContent = `اكتمل — ${totalMeshes.toLocaleString("en-US")} نموذجًا`;
+    S.allLoaded = true;
+  })();
+
+  return;
+
 }
 
 /* ═══ واجهة المجموعات ═══ */
