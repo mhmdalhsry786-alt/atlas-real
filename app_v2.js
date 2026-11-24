@@ -46,7 +46,7 @@ function initScene() {
   S.scene = new THREE.Scene();
   S.scene.background = new THREE.Color(0x0a0e14);
 
-  S.camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000);
+  S.camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.5, 200000);
   S.camera.position.set(0, 0, 3);
 
   S.renderer = new THREE.WebGLRenderer({ canvas: c, antialias: true, powerPreference: "high-performance" });
@@ -254,9 +254,14 @@ function fit() {
     if (S.visible[k]) S.loaded[k].meshes.forEach(m => { if (m.visible) box.expandByObject(m); });
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3()).length();
+  const sz = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
   S.target.copy(c);
-  S.sph.r = size * 1.1;
+  S.sph.r = maxDim * 1.3;
+  S.sph.th = 0; S.sph.ph = Math.PI / 2;
+  S.camera.near = Math.max(0.1, maxDim / 5000);
+  S.camera.far = maxDim * 60 + 1000;
+  S.camera.updateProjectionMatrix();
   S.applyCam();
 }
 function fitTo(mesh) {
@@ -653,7 +658,9 @@ async function boot() {
         $("#progTxt").textContent = `${done}/${S.groups.length} · ${total.toLocaleString("en-US")} جزء`;
         $("#progBar").style.width = (done / S.groups.length * 100) + "%";
         $("#sN").textContent = total.toLocaleString("en-US");
-        if (done === 1) { buildIndex(); fit(); $("#go").disabled = false; S.ready = true; }
+        buildIndex();
+        if (done === 1) { fit(); $("#go").disabled = false; S.ready = true; }
+        else if (done <= 6 || done % 8 === 0) fit();
       } catch (e) { console.warn("group fail", g.name, e); }
     }
   }
