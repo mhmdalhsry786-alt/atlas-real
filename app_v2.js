@@ -164,6 +164,21 @@ async function loadGroup(loader, g) {
       }
       o.material.side = THREE.DoubleSide;
       o.material.roughness = 0.6; o.material.metalness = 0.05;
+      if (!b || !b.d) {
+        // لون افتراضي قريب من نسيج التطبيق
+        const g2 = (o.userData.en || "").toLowerCase();
+        let col = 0xcfc7ba;                                  // عظم
+        if (/muscle|muscular/.test(g2)) col = 0xa9534b;       // عضلة
+        else if (/artery|arter/.test(g2)) col = 0xc0392b;     // شريان
+        else if (/vein|ven/.test(g2)) col = 0x2f6fa8;         // وريد
+        else if (/nerve|nerv/.test(g2)) col = 0xe0c341;       // عصب
+        else if (/cartil|ligament|tendon/.test(g2)) col = 0xe6e0d2;
+        else if (/lung|pulmon/.test(g2)) col = 0xe8b7b7;
+        else if (/kidney|renal/.test(g2)) col = 0xb85c4a;
+        else if (/liver|hepat/.test(g2)) col = 0x8a4a3a;
+        else if (/lymph/.test(g2)) col = 0x9ad0a8;
+        o.material.color.set(col);
+      }
       o.material.transparent = true; o.material.opacity = 1;
       o.userData.baseColor = o.material.color ? o.material.color.clone() : null;
     }
