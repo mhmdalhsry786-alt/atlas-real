@@ -63,13 +63,18 @@ self.addEventListener('message', e => {
         const hit = await c.match(u);
         if (hit) { done++; }
         else {
-          const r = await fetch(u);
-          if (r.ok) {
-            const blob = await r.clone().blob();
+          let r;
+          try { r = await fetch(u, {cache: 'no-store'}); }
+          catch (_) { r = await fetch(u, {mode: 'no-cors'}); }
+          if (r && (r.ok || r.type === 'opaque')) {
+            const blob = await r.blob();
             bytes += blob.size;
-            await c.put(u, new Response(blob, {headers: r.headers}));
+            await c.put(u, new Response(blob, {
+              status: r.ok ? r.status : 200,
+              headers: {'Content-Type': 'application/octet-stream', 'Content-Length': String(blob.size)}
+            }));
             done++;
-          } else { failed++; }
+          } else { failed++; if (e.source) e.source.postMessage({type:'CACHE_FAIL', url:u, reason:'http '+(r?r.status:0)}); }
         }
       } catch (err) {
         failed++;

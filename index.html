@@ -374,7 +374,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
           console.warn('cache fail', d.url, d.reason);
         }
         if (d.type === 'CACHE_DONE') {
-          const okAll = d.failed === 0;
+          const okAll = (d.failed === 0) && (d.done >= d.total);
           btn.textContent = okAll ? '✅ محفوظ على الهاتف' : `⚠️ ${d.done}/${d.total} محفوظ`;
           btn.style.background = okAll ? 'rgba(56,211,159,.15)' : 'rgba(255,159,67,.15)';
           btn.style.borderColor = okAll ? '#38d39f' : '#ff9f43';
