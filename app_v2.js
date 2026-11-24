@@ -171,7 +171,9 @@ async function loadGroup(loader, g) {
   });
   S.scene.add(gltf.scene);
   S.loaded[g.name] = { root: gltf.scene, meshes };
-  S.visible[g.name] = true;
+  const isFirst = Object.keys(S.loaded).length === 1;
+  S.visible[g.name] = isFirst;          // ابدأ بمجموعة واحدة كاملة
+  gltf.scene.visible = isFirst;
   return meshes.length;
 }
 
