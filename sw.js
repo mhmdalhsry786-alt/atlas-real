@@ -1,6 +1,6 @@
-/* أتلس — كاش ذكي: يخزّن ما حُمّل فقط */
-const VERSION="atlas-real-v1";
-const CORE=["./","./index.html","./manifest.webmanifest","./icon-180.png","../vendor/three.module.js"];
+/* أتلس — يخزّن كل ما حمّله المستخدم (بما فيه النماذج من Releases) */
+const VERSION="atlas-real-v2";
+const CORE=["./","./index.html","./manifest.webmanifest","./icon-180.png"];
 self.addEventListener("install",e=>{
   e.waitUntil((async()=>{
     const c=await caches.open(VERSION);
@@ -19,20 +19,24 @@ self.addEventListener("fetch",e=>{
   const req=e.request;
   if(req.method!=="GET")return;
   const u=new URL(req.url);
-  if(u.origin!==self.location.origin)return;
+  // نخدم من نفس الأصل، ومن GitHub Releases أيضًا
+  const isOwn = u.origin===self.location.origin;
+  const isRel = u.hostname==="github.com" || u.hostname.endsWith("githubusercontent.com");
+  if(!isOwn && !isRel) return;
   e.respondWith((async()=>{
     const c=await caches.open(VERSION);
     const hit=await c.match(req,{ignoreSearch:true});
-    if(hit)return hit;
+    if(hit) return hit;
     try{
       const res=await fetch(req);
-      if(res&&res.ok&&res.type==="basic") c.put(req,res.clone()).catch(()=>{});
+      if(res && res.ok) c.put(req, res.clone()).catch(()=>{});
       return res;
     }catch(_){
       if(req.mode==="navigate"){
         const idx=await c.match("./index.html"); if(idx)return idx;
       }
-      return new Response("غير متصل",{status:503,headers:{"Content-Type":"text/plain; charset=utf-8"}});
+      return new Response("غير متصل — هذا النموذج لم يُحمّل بعد",{status:503,
+        headers:{"Content-Type":"text/plain; charset=utf-8"}});
     }
   })());
 });
