@@ -192,6 +192,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
   <div id="progBar"></div>
   <div id="progTxt">يُجهّز…</div>
   <button id="go" disabled>ابدأ الاستكشاف</button>
+  <button id="dl" style="margin-top:10px;padding:12px 28px;border-radius:12px;border:1px solid #243040;background:rgba(19,26,36,.9);color:#8b9bb0;font-size:13px;font-family:inherit">
+    ⬇️ تحميل للهاتف (يعمل بلا إنترنت)
+  </button>
+  <div id="dlTxt" style="font-size:11px;color:#8b9bb0;margin-top:6px"></div>
 </div>
 
 <!-- شريط علوي -->
@@ -309,8 +313,66 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 
 <script type="module" src="./app_v2.js?v=508062"></script>
 <script>
-if("serviceWorker" in navigator)
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+(function(){
+  let swReg = null;
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").then(r => { swReg = r; }).catch(()=>{});
+  }
+  const btn = document.getElementById('dl');
+  const txt = document.getElementById('dlTxt');
+  if (!btn) return;
+
+  async function downloadAll() {
+    if (!navigator.serviceWorker.controller && swReg) {
+      await navigator.serviceWorker.ready;
+      await new Promise(r => setTimeout(r, 800));
+    }
+    btn.disabled = true;
+    btn.textContent = '⏳ يُخزّن…';
+    try {
+      const man = await (await fetch('manifest.json')).json();
+      const urls = man.groups.map(g => './models/' + g.file.split('/').pop());
+      // الصور
+      let bind = {};
+      try { bind = await (await fetch('tex/bind.json')).json(); } catch(e) {}
+      const texs = new Set();
+      for (const k in bind) { if (bind[k].d) texs.add('./' + bind[k].d.replace(/^tex\//,'tex/')); if (bind[k].n) texs.add('./' + bind[k].n); }
+      const all = [...urls, ...texs];
+      txt.textContent = `${all.length} ملفًا — اترك الصفحة مفتوحة`;
+      const sw = navigator.serviceWorker.controller || (swReg && swReg.active);
+      if (!sw) { txt.textContent = 'أعد تحميل الصفحة ثم جرّب'; btn.disabled=false; return; }
+      sw.postMessage({ type: 'CACHE_MODELS', urls: all });
+      let done = 0, total = all.length;
+      navigator.serviceWorker.addEventListener('message', ev => {
+        const d = ev.data || {};
+        if (d.type === 'CACHE_PROGRESS') {
+          done = d.done; total = d.total;
+          btn.textContent = `⏳ ${Math.round(done/total*100)}%`;
+          txt.textContent = `${done} / ${total}`;
+        }
+        if (d.type === 'CACHE_DONE') {
+          btn.textContent = '✅ محفوظ على الهاتف';
+          btn.style.background = 'rgba(56,211,159,.15)';
+          btn.style.borderColor = '#38d39f';
+          btn.style.color = '#38d39f';
+          btn.disabled = false;
+          txt.textContent = 'افتح التطبيق بلا إنترنت الآن';
+          localStorage.setItem('offlineReady', '1');
+        }
+      });
+    } catch (e) {
+      btn.textContent = 'تعذّر — جرّب ثانية';
+      btn.disabled = false;
+    }
+  }
+  btn.onclick = downloadAll;
+
+  // إن كان محفوظًا سابقًا
+  if (localStorage.getItem('offlineReady') === '1' && btn) {
+    btn.textContent = '✅ محفوظ على الهاتف';
+    btn.style.color = '#38d39f';
+  }
+})();
 </script>
 </body>
 </html>
